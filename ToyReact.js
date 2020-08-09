@@ -2,6 +2,8 @@ const nodeEqual = (vdom1, vdom2) => {
 		if (vdom1.type !== vdom2.type)
 			return false
 		for (let name in vdom1.props) {
+			/*if (typeof vdom1.props[name] === "function" && typeof vdom2.props[name] === "function" && vdom1.props[name].toString() === vdom2.props[name].toString())
+				continue*/
 			if (typeof vdom1.props[name] === "object" && typeof vdom2.props[name] === "object" && JSON.stringify(vdom1.props[name]) === JSON.stringify(vdom2.props[name]))
 				continue
 			if (vdom1.props[name] !== vdom2.props[name])
@@ -15,17 +17,11 @@ const nodeEqual = (vdom1, vdom2) => {
 export class ElementWrapper {
 
 	constructor(type) {
-		//this.root = document.createElement(type)
 		this.type = type
 		this.props = Object.create(null)
 		this.children = []
 	}
 	setAttribute(name, value){
-		//if (name.match(/^on([\s\S]+)$/))
-		//	this.root.addEventListener(RegExp.$1.replace(/^[\s\S]/, (s)=> s.toLowerCase()), value)
-		//if (name === "className")
-		//	name = "class"
-		//this.root.setAttribute(name,value)
 		this.props[name] = value
 	}
 	appendChild(vchild){
@@ -36,18 +32,6 @@ export class ElementWrapper {
 	}
 	mountTo(range){
 		this.range = range
-		//let splaceholder = document.createComment("placeholder")
-		//let startRange = document.createRange()
-		//startRange.setStart(range.startContainer, range.startOffset)
-		//startRange.setEnd(range.startContainer, range.startOffset)
-		//startRange.insertNode(splaceholder)
-		//range.setStartAfter(splaceholder)
-		let eplaceholder = document.createComment("placeholder")
-		let endRange = document.createRange()
-		endRange.setStart(range.endContainer, range.endOffset)
-		endRange.setEnd(range.endContainer, range.endOffset)
-		endRange.insertNode(eplaceholder)
-		range.deleteContents()
 		
 		// 產生element
 		let element = document.createElement(this.type)
@@ -72,16 +56,12 @@ export class ElementWrapper {
 			}
 			child.mountTo(range)
 		}
+		let v = null
+		if (range.endOffset !== range.startOffset)
+			v = range.startContainer.children[range.startOffset]
 		range.insertNode(element)
-		//startRange.setStartBefore(splaceholder)
-		//startRange.setEndAfter(splaceholder)
-		//startRange.deleteContents()
-		
-		// needImporve
-		endRange.setStartAfter(element)
-		endRange.setEndBefore(eplaceholder)
-		endRange.deleteContents()
-
+		if (v)
+			range.startContainer.removeChild(v)
 	}
 	
 	
@@ -126,18 +106,15 @@ export class Component{
 	}
 	update(){
 		let replace = (od, nd) => {
-			//debugger
-			//if (!od.equal(nd) || od.children.length !== nd.children.length ){
-			//	nd.mountTo(od.range)
-			//}
-			//else {
-			//	for (let i in od.children) {
-			//		replace(od.children[i], nd.children[i])
-			//	}
-			//}
 			if (!nodeEqual(od, nd)) {
 				if (od instanceof Component && nd instanceof Component) {
 					replace(od.vdom, nd.render().vdom)
+					for (let i = 0; i < nd.children.length; i++) {
+						if (replace(od.children[i], nd.children[i]))
+							od.children[i] = nd.children[i]
+					}
+
+					
 				}else {
 					nd.mountTo(od.range)
 					return true
@@ -150,16 +127,8 @@ export class Component{
 			}
 			const childNum = Math.max(nd.children.length, od.children.length)
 			for (let i = 0; i < nd.children.length; i++) {
-				//if (i >= od.children.length) {
-				//	//od.appendChild(nd.children[i])
-				//	nd.children
-				//	nd.children[i].mountTo(range)
-				//} else if (i >= nd.children.length){
-				//	od.children[i].range.deleteContents()
-				//} else {	
 				if (replace(od.children[i], nd.children[i]))
 					od.children[i] = nd.children[i]
-				//}
 			}
 		}
 		let vdom = this.render().vdom
@@ -200,7 +169,6 @@ export class Component{
 		if (!this.state && state)
 			this.state = {}
 		merge(this.state, state)
-		console.log(this.state, this.props)
 		this.update()
 	}
 	equal(element){
@@ -222,7 +190,6 @@ export class Component{
 
 export let ToyReact = {
 	createElement(type, attributes, ...children){
-		console.log("create", arguments)
 		let element 
 		if (typeof type === "string")
 			element = new ElementWrapper(type)
@@ -259,6 +226,5 @@ export let ToyReact = {
 			range.setEnd(element, 0)
 		}
 		vdom.mountTo(range)
-		console.log(vdom)
 	}
 }
